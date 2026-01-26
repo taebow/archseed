@@ -15,5 +15,6 @@ cp ./src/mkpart $PROFILE_PATH/airootfs/usr/bin/
 echo 'file_permissions["/usr/bin/mkpart"]="0:0:755"' >> $PROFILE_PATH/profiledef.sh
 
 echo 'KEYMAP=dvorak' >> $PROFILE_PATH/airootfs/etc/vconsole.conf
+sed -i -e 's/^timeout .*/timeout 0/' -e 's/^beep on/beep off/' $PROFILE_PATH/efiboot/loader/loader.conf
 
 sudo mkarchiso -v -r -w $TMP_DIR -o $IMAGES_DIR $PROFILE_PATH
