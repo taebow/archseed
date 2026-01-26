@@ -1,3 +1,45 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "I'm in the live iso !"
+# Usage: ./mkpart /dev/sdX
+DISK="$1"
+
+if [[ -z "$DISK" ]]; then
+    echo "Usage: $0 /dev/sdX"
+    exit 1
+fi
+
+echo "WARNING: This will destroy all data on $DISK!"
+read -p "Are you sure you want to continue? (yes/[no]): " CONFIRM
+if [[ "$CONFIRM" != "yes" ]]; then
+    echo "Aborted."
+    exit 0
+fi
+
+# Wipe existing partition table
+sgdisk --zap-all "$DISK"
+sgdisk --clear "$DISK"
+sgdisk --mbrtogpt "$DISK"
+
+# Partition sizes (adjust as needed)
+EFI_SIZE="+512M"
+XBOOTLDR_SIZE="+1G"
+# Remaining space will be LUKS
+
+# Create EFI partition (type ef00)
+sgdisk -n 1:0:$EFI_SIZE -t 1:ef00 -c 1:"EFI System" "$DISK"
+
+# Create XBOOTLDR partition (type ea00, xbootldr)
+sgdisk -n 2:0:$XBOOTLDR_SIZE -t 2:ea00 -c 2:"XBOOTLDR" "$DISK"
+
+# Create LUKS partition (type 8309, Linux LUKS)
+sgdisk -n 3:0:0 -t 3:8309 -c 3:"LUKS" "$DISK"
+
+# Inform the OS of partition table changes
+partprobe "$DISK"
+
+echo "Partitioning complete:"
+sgdisk -p "$DISK"
+
+echo "Format EFI partition"
+mkfs.fat -F 32 "${DISK}1"
