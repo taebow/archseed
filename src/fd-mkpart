@@ -42,4 +42,4 @@ echo "Partitioning complete:"
 sgdisk -p "$DISK"
 
 echo "Format EFI partition"
-mkfs.fat -F 32 "${DISK}1"
+mkfs.fat -F 32 "${DISK}p1"

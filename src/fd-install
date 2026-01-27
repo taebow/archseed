@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+EFI_PARTITION="/dev/nvme0n1p1"
+XBOOTLDR_PARTITION="/dev/nvme0n1p2"   
+ROOT_PARTITION="/dev/nvme0n1p3"      
+
+HOSTNAME="archlinux"
+TIMEZONE="Europe/Paris"
+LOCALE="en_US.UTF-8"
+KEYMAP="dvorak"
+
+BASE_PACKAGES="base linux linux-firmware"
+ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git"
+ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
+
+ROOT_PASSWD="pass123"
+USER="user"
+USER_PASSWD="pass123"
+
+echo "==> Formatting XBOOTLDR partition..."
+mkfs.fat -F32 "$XBOOTLDR_PARTITION"
+
+echo "==> Setting up LUKS encryption on root partition..."
+cryptsetup luksFormat "$ROOT_PARTITION"
+
+echo "==> Opening encrypted partition..."
+cryptsetup open "$ROOT_PARTITION" cryptroot
+
+echo "==> Formatting root partition..."
+mkfs.btrfs  /dev/mapper/cryptroot
+
+echo "==> Mounting filesystems..."
+mount /dev/mapper/cryptroot /mnt
+
+mkdir -p /mnt/efi
+mount "$EFI_PARTITION" /mnt/efi
+
+mkdir -p /mnt/boot
+mount "$XBOOTLDR_PARTITION" /mnt/boot
+
+# Install base system
+echo "==> Installing base system..."
+pacstrap /mnt $BASE_PACKAGES $ESSENTIAL_PACKAGES $ADDITIONAL_PACKAGES
+
+echo "==> Generating fstab..."
+genfstab -U /mnt >> /mnt/etc/fstab
+
+ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
+
+echo "==> Configuring system..."
+arch-chroot /mnt /bin/bash <<EOF
+set -euo pipefail
+
+# Set timezone
+ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+hwclock --systohc
+
+# Set locale
+echo "$LOCALE UTF-8" >> /etc/locale.gen
+locale-gen
+echo "LANG=$LOCALE" > /etc/locale.conf
+
+# Set keymap
+echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
+
+# Set hostname
+echo "$HOSTNAME" > /etc/hostname
+
+# Configure mkinitcpio for encryption
+sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+
+# Regenerate initramfs
+mkinitcpio -P
+
+# Install systemd-boot
+bootctl install --esp-path=/efi --boot-path=/boot
+
+# Configure systemd-boot loader
+cat > /efi/loader/loader.conf <<LOADER
+default arch.conf
+timeout 3
+console-mode max
+editor no
+LOADER
+
+# Create boot entry
+cat > /boot/loader/entries/arch.conf <<BOOTENTRY
+title   Arch Linux
+linux   /vmlinuz-linux
+initrd  /initramfs-linux.img
+options rd.luks.name=$ROOT_UUID=cryptroot root=/dev/mapper/cryptroot rw
+BOOTENTRY
+
+# Create fallback boot entry
+cat > /boot/loader/entries/arch-fallback.conf <<BOOTENTRY
+title   Arch Linux (fallback initramfs)
+linux   /vmlinuz-linux
+initrd  /initramfs-linux-fallback.img
+options rd.luks.name=$ROOT_UUID=cryptroot root=/dev/mapper/cryptroot rw
+BOOTENTRY
+
+# Set root password
+echo 'Set root password'
+passwd
+
+# Create user if specified
+useradd -m -G wheel -s /bin/bash $USER
+echo "root:$ROOT_PASSWD" | chpasswd
+echo "$USER:$USER_PASSWD" | chpasswd
+
+# Enable sudo for wheel group
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+# Enable NetworkManager
+systemctl enable NetworkManager
+
+echo ""
+echo "==> System configuration complete!"
+
+EOF
+
+echo "Don't forget to change the default passwords!"
