@@ -2,8 +2,8 @@
 set -euo pipefail
 
 EFI_PARTITION="/dev/nvme0n1p1"
-XBOOTLDR_PARTITION="/dev/nvme0n1p2"   
-ROOT_PARTITION="/dev/nvme0n1p3"      
+# XBOOTLDR_PARTITION="/dev/nvme0n1p2"   
+ROOT_PARTITION="/dev/nvme0n1p2"      
 
 HOSTNAME="archlinux"
 TIMEZONE="Europe/Paris"
@@ -18,8 +18,8 @@ ROOT_PASSWD="pass123"
 USER="user"
 USER_PASSWD="pass123"
 
-echo "==> Formatting XBOOTLDR partition..."
-mkfs.fat -F32 "$XBOOTLDR_PARTITION"
+# echo "==> Formatting XBOOTLDR partition..."
+# mkfs.fat -F32 "$XBOOTLDR_PARTITION"
 
 echo "==> Setting up LUKS encryption on root partition..."
 cryptsetup luksFormat "$ROOT_PARTITION"
@@ -33,11 +33,11 @@ mkfs.btrfs  /dev/mapper/cryptroot
 echo "==> Mounting filesystems..."
 mount /dev/mapper/cryptroot /mnt
 
-mkdir -p /mnt/efi
-mount "$EFI_PARTITION" /mnt/efi
-
 mkdir -p /mnt/boot
-mount "$XBOOTLDR_PARTITION" /mnt/boot
+mount "$EFI_PARTITION" /mnt/boot
+
+# mkdir -p /mnt/boot
+# mount "$XBOOTLDR_PARTITION" /mnt/boot
 
 # Install base system
 echo "==> Installing base system..."
@@ -74,10 +74,11 @@ sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboar
 mkinitcpio -P
 
 # Install systemd-boot
-bootctl install --esp-path=/efi --boot-path=/boot
+# bootctl install --esp-path=/efi --boot-path=/boot
+bootctl install
 
 # Configure systemd-boot loader
-cat > /efi/loader/loader.conf <<LOADER
+cat > /boot/loader/loader.conf <<LOADER
 default arch.conf
 timeout 3
 console-mode max
@@ -106,8 +107,15 @@ passwd
 
 # Create user if specified
 useradd -m -G wheel -s /bin/bash $USER
-echo "root:$ROOT_PASSWD" | chpasswd
-echo "$USER:$USER_PASSWD" | chpasswd
+
+# Set passwords
+chpasswd <<PASSWD
+root:$ROOT_PASSWD
+PASSWD
+
+chpasswd <<PASSWD
+$USER:$USER_PASSWD
+PASSWD
 
 # Enable sudo for wheel group
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers

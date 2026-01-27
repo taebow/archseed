@@ -30,10 +30,10 @@ XBOOTLDR_SIZE="+1G"
 sgdisk -n 1:0:$EFI_SIZE -t 1:ef00 -c 1:"EFI System" "$DISK"
 
 # Create XBOOTLDR partition (type ea00, xbootldr)
-sgdisk -n 2:0:$XBOOTLDR_SIZE -t 2:ea00 -c 2:"XBOOTLDR" "$DISK"
+# sgdisk -n 2:0:$XBOOTLDR_SIZE -t 2:ea00 -c 2:"XBOOTLDR" "$DISK"
 
 # Create LUKS partition (type 8309, Linux LUKS)
-sgdisk -n 3:0:0 -t 3:8309 -c 3:"LUKS" "$DISK"
+sgdisk -n 2:0:0 -t 2:8309 -c 2:"LUKS" "$DISK"
 
 # Inform the OS of partition table changes
 partprobe "$DISK"
