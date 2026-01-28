@@ -2,8 +2,8 @@
 set -euo pipefail
 
 EFI_PARTITION="/dev/nvme0n1p1"
-# XBOOTLDR_PARTITION="/dev/nvme0n1p2"   
-ROOT_PARTITION="/dev/nvme0n1p2"      
+XBOOTLDR_PARTITION="/dev/nvme0n1p2"
+ROOT_PARTITION="/dev/nvme0n1p3"
 
 HOSTNAME="archlinux"
 TIMEZONE="Europe/Paris"
@@ -11,15 +11,15 @@ LOCALE="en_US.UTF-8"
 KEYMAP="dvorak"
 
 BASE_PACKAGES="base linux linux-firmware"
-ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git"
+ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth"
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 
 ROOT_PASSWD="pass123"
-USER="user"
+USER="th"
 USER_PASSWD="pass123"
 
-# echo "==> Formatting XBOOTLDR partition..."
-# mkfs.fat -F32 "$XBOOTLDR_PARTITION"
+echo "==> Formatting XBOOTLDR partition..."
+mkfs.fat -F32 "$XBOOTLDR_PARTITION"
 
 echo "==> Setting up LUKS encryption on root partition..."
 cryptsetup luksFormat "$ROOT_PARTITION"
@@ -33,11 +33,11 @@ mkfs.btrfs  /dev/mapper/cryptroot
 echo "==> Mounting filesystems..."
 mount /dev/mapper/cryptroot /mnt
 
-mkdir -p /mnt/boot
-mount "$EFI_PARTITION" /mnt/boot
+mkdir -p /mnt/efi
+mount "$EFI_PARTITION" /mnt/efi
 
-# mkdir -p /mnt/boot
-# mount "$XBOOTLDR_PARTITION" /mnt/boot
+mkdir -p /mnt/boot
+mount "$XBOOTLDR_PARTITION" /mnt/boot
 
 # Install base system
 echo "==> Installing base system..."
@@ -49,7 +49,7 @@ genfstab -U /mnt >> /mnt/etc/fstab
 ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
 
 echo "==> Configuring system..."
-arch-chroot /mnt /bin/bash <<EOF
+arch-chroot -S /mnt /bin/bash <<EOF
 set -euo pipefail
 
 # Set timezone
@@ -68,19 +68,18 @@ echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
 echo "$HOSTNAME" > /etc/hostname
 
 # Configure mkinitcpio for encryption
-sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+sed -i 's/^HOOKS=.*/HOOKS=(base systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 
 # Regenerate initramfs
 mkinitcpio -P
 
 # Install systemd-boot
-# bootctl install --esp-path=/efi --boot-path=/boot
-bootctl install
+bootctl install --esp-path=/efi --boot-path=/boot
 
 # Configure systemd-boot loader
-cat > /boot/loader/loader.conf <<LOADER
+cat > /efi/loader/loader.conf <<LOADER
 default arch.conf
-timeout 3
+timeout 1
 console-mode max
 editor no
 LOADER
@@ -90,7 +89,7 @@ cat > /boot/loader/entries/arch.conf <<BOOTENTRY
 title   Arch Linux
 linux   /vmlinuz-linux
 initrd  /initramfs-linux.img
-options rd.luks.name=$ROOT_UUID=cryptroot root=/dev/mapper/cryptroot rw
+options rd.luks.name=$ROOT_UUID=cryptroot root=/dev/mapper/cryptroot rw quiet splash
 BOOTENTRY
 
 # Create fallback boot entry
@@ -101,21 +100,17 @@ initrd  /initramfs-linux-fallback.img
 options rd.luks.name=$ROOT_UUID=cryptroot root=/dev/mapper/cryptroot rw
 BOOTENTRY
 
-# Set root password
-echo 'Set root password'
-passwd
-
 # Create user if specified
 useradd -m -G wheel -s /bin/bash $USER
 
 # Set passwords
-chpasswd <<PASSWD
+chpasswd <<SETROOTPASSWORD
 root:$ROOT_PASSWD
-PASSWD
+SETROOTPASSWORD
 
-chpasswd <<PASSWD
+chpasswd <<SETUSERPASSWORD
 $USER:$USER_PASSWD
-PASSWD
+SETUSERPASSWORD
 
 # Enable sudo for wheel group
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
@@ -123,9 +118,15 @@ sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 # Enable NetworkManager
 systemctl enable NetworkManager
 
+sync
 echo ""
 echo "==> System configuration complete!"
 
 EOF
+
+umount /mnt/efi
+umount /mnt/boot
+umount /mnt
+cryptsetup close cryptroot
 
 echo "Don't forget to change the default passwords!"

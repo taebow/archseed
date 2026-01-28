@@ -15,10 +15,9 @@ qemu-system-x86_64 \
     -smp 4 \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/ovmf/x64/OVMF_CODE.4m.fd \
     -drive if=pflash,format=raw,file=$EFI_VARS \
-    -drive file=$DISK_PATH,if=none,id=nvm,cache=none,aio=native \
     -cdrom images/"$(ls -1 images | sort | tail -n 1)" \
+    -drive file=$DISK_PATH,if=none,id=nvm,cache=none,aio=native \
     -device nvme,serial=deadbeef,drive=nvm \
     -nic user,model=virtio-net-pci \
     -vga virtio \
-    -display sdl,gl=on \
-    -boot menu=on
+    -display sdl,gl=on
