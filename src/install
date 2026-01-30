@@ -9,6 +9,8 @@ HOSTNAME="archlinux"
 TIMEZONE="Europe/Paris"
 LOCALE="en_US.UTF-8"
 KEYMAP="dvorak"
+XKBLAYOUT="us"
+XKBVARIANT="dvorak-alt-intl"
 
 BASE_PACKAGES="base linux linux-firmware"
 ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth"
@@ -62,7 +64,11 @@ locale-gen
 echo "LANG=$LOCALE" > /etc/locale.conf
 
 # Set keymap
-echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
+cat > /etc/vconsole.conf <<VCONSOLE
+KEYMAP=$KEYMAP
+XKBLAYOUT=$XKBLAYOUT
+XKBVARIANT=$XKBVARIANT
+VCONSOLE
 
 # Set hostname
 echo "$HOSTNAME" > /etc/hostname
