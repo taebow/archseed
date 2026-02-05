@@ -15,6 +15,7 @@ XKBVARIANT="dvorak-alt-intl"
 BASE_PACKAGES="base linux linux-firmware"
 ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth"
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
+MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
 
 ROOT_PASSWD="pass123"
 USER="th"
@@ -43,7 +44,7 @@ mount "$XBOOTLDR_PARTITION" /mnt/boot
 
 # Install base system
 echo "==> Installing base system..."
-pacstrap /mnt $BASE_PACKAGES $ESSENTIAL_PACKAGES $ADDITIONAL_PACKAGES
+pacstrap /mnt $BASE_PACKAGES $ESSENTIAL_PACKAGES $ADDITIONAL_PACKAGES $MICROCODE_PACKAGE
 
 echo "==> Generating fstab..."
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -74,7 +75,7 @@ VCONSOLE
 echo "$HOSTNAME" > /etc/hostname
 
 # Configure mkinitcpio for encryption
-sed -i 's/^HOOKS=.*/HOOKS=(base systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+sed -i 's/^HOOKS=.*/HOOKS=(base systemd plymouth autodetect modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 
 # Regenerate initramfs
 mkinitcpio -P
@@ -94,6 +95,7 @@ LOADER
 cat > /boot/loader/entries/arch.conf <<BOOTENTRY
 title   Arch Linux
 linux   /vmlinuz-linux
+initrd  /$MICROCODE_PACKAGE.img
 initrd  /initramfs-linux.img
 options rd.luks.name=$ROOT_UUID=cryptroot root=/dev/mapper/cryptroot rw quiet splash
 BOOTENTRY
@@ -102,6 +104,7 @@ BOOTENTRY
 cat > /boot/loader/entries/arch-fallback.conf <<BOOTENTRY
 title   Arch Linux (fallback initramfs)
 linux   /vmlinuz-linux
+initrd  /$MICROCODE_PACKAGE.img
 initrd  /initramfs-linux-fallback.img
 options rd.luks.name=$ROOT_UUID=cryptroot root=/dev/mapper/cryptroot rw
 BOOTENTRY
