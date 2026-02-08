@@ -2,8 +2,45 @@
 set -euo pipefail
 
 EFI_PARTITION="/dev/nvme0n1p1"
-XBOOTLDR_PARTITION="/dev/nvme0n1p2"
-ROOT_PARTITION="/dev/nvme0n1p3"
+ROOT_PARTITION="/dev/nvme0n1p2"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --efi)
+            EFI_PARTITION="$2"
+            shift 2
+            ;;
+        --xbootldr)
+            XBOOTLDR_PARTITION="$2"
+            shift 2
+            ;;
+        --root)
+            ROOT_PARTITION="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+echo "Configuration Summary:"
+echo "======================"
+echo "EFI partition:            $EFI_PARTITION"
+if [ -v XBOOTLDR_PARTITION ]; then
+    echo "XBOOTLDR partition:       $XBOOTLDR_PARTITION"
+else
+    echo "XBOOTLDR partition:       (not set)"
+fi
+echo "ROOT partition:           $ROOT_PARTITION"
+echo "======================"
+read -p "Continue with these settings? (y/n): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 1
+fi
 
 HOSTNAME="archlinux"
 TIMEZONE="Europe/Paris"
