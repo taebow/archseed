@@ -40,7 +40,7 @@ parse_args() {
         esac
     done
     [[ -v EFI_PARTITION && -v ROOT_PARTITION ]] || {
-        echo "Missing required option"
+        echo "Missing required option" >&2
         usage
         exit 1
     }
@@ -48,16 +48,28 @@ parse_args() {
 
 confirm() {
     echo "Configuration Summary:"
-    echo "======================"
-    echo "EFI partition:            $EFI_PARTITION"
-    echo "ROOT partition:           $ROOT_PARTITION"
-    echo "XBOOTLDR partition:       ${XBOOTLDR_PARTITION:-(not set)}"
-    echo "======================"
-    read -p "Continue with these settings? (y/n): " -n 1 -r
+    echo "===================================="
+    echo "EFI partition:        $EFI_PARTITION"
+    echo "ROOT partition:       $ROOT_PARTITION"
+    echo "XBOOTLDR partition:   ${XBOOTLDR_PARTITION:-(not set)}"
+    echo "===================================="
+    read -p "Continue with these settings? (y/n): " -n 1 -r; echo
     [[ $REPLY =~ ^[Yy]$ ]] || {
-        echo "Aborted"
+        echo "Aborted" >&2
         exit 1
     }
+}
+
+get_password() {
+    local -n var=$1
+    local password confirm
+    while true; do
+        read -s -p "$2 :" password; echo
+        read -s -p "Confirm password :" confirm; echo
+        [ "$password" == "$confirm" ] && break
+        echo "Passwords do not match! Try again." >&2
+    done
+    var="$confirm"
 }
 
 to_be_splitted() {
@@ -73,9 +85,9 @@ ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git btop iwd zsh tree ncd
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
 
-ROOT_PASSWD="pass123"
 USER="th"
-USER_PASSWD="pass123"
+get_password ROOT_PASSWD "Enter root account password"
+get_password USER_PASSWD "Enter user account password"
 
 EFI_MOUNTPOINT="boot"
 if [[ -v XBOOTLDR_PARTITION ]]; then
