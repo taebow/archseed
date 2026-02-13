@@ -2,19 +2,19 @@
 set -euo pipefail
 
 # Usage: ./mkpart /dev/sdX
-DISK="$1"
+DISK="/dev/nvme0n1"
 
-if [[ -z "$DISK" ]]; then
-    echo "Usage: $0 /dev/sdX"
-    exit 1
-fi
+# if [[ -z "$DISK" ]]; then
+    # echo "Usage: $0 /dev/sdX"
+    # exit 1
+# fi
 
-echo "WARNING: This will destroy all data on $DISK!"
-read -p "Are you sure you want to continue? (yes/[no]): " CONFIRM
-if [[ "$CONFIRM" != "yes" ]]; then
-    echo "Aborted."
-    exit 0
-fi
+# echo "WARNING: This will destroy all data on $DISK!"
+# read -p "Are you sure you want to continue? (yes/[no]): " CONFIRM
+# if [[ "$CONFIRM" != "yes" ]]; then
+    # echo "Aborted."
+    # exit 0
+# fi
 
 # Wipe existing partition table
 sgdisk --zap-all "$DISK"
@@ -43,3 +43,6 @@ sgdisk -p "$DISK"
 
 echo "Format EFI partition"
 mkfs.fat -F 32 "${DISK}p1"
+
+./install --efi /dev/nvme0n1p1 --root /dev/nvme0n1p2
+shudown

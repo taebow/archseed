@@ -8,7 +8,7 @@ PROFILE_PATH=$PROFILE_DIR/$PROFILE_NAME
 
 add_script() {
     local filename="$1"
-    cp ./src/$filename $PROFILE_PATH/airootfs/root/
+    cp ./assets/$filename $PROFILE_PATH/airootfs/root/
     echo 'file_permissions["/root/'${filename}'"]="0:0:755"' >> $PROFILE_PATH/profiledef.sh
 }
 
@@ -18,8 +18,11 @@ cp -Rv /usr/share/archiso/configs/$PROFILE_NAME $PROFILE_DIR/
 echo 'KEYMAP=dvorak' >> $PROFILE_PATH/airootfs/etc/vconsole.conf
 sed -i -e 's/^timeout .*/timeout 0/' -e 's/^beep on/beep off/' $PROFILE_PATH/efiboot/loader/loader.conf
 
-add_script mkparts
-add_script install 
+add_script install
+if [[ "$1" == "test" ]]; then
+    add_script autorun.sh
+    echo "./autorun.sh" >> $PROFILE_PATH/airootfs/root/.zlogin
+fi
 
 sudo rm -r $TMP_DIR
 sudo mkarchiso -v -r -w $TMP_DIR -o $IMAGES_DIR $PROFILE_PATH

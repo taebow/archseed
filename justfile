@@ -1,8 +1,8 @@
 build:
-    ./bin/build
+    ./scripts/build_iso.sh
     
 test:
-    ./bin/test
+    ./scripts/build_iso.sh test
+    ./scripts/run_iso.sh install
+    ./scripts/run_iso.sh
     
-test-install:
-    ./bin/test install

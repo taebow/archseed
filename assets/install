@@ -28,6 +28,10 @@ parse_args() {
                 ROOT_PARTITION="$2"
                 shift 2
                 ;;
+            --test)
+                IS_TEST=true
+                shift 1
+                ;;
             -h)
                 usage
                 exit 0
@@ -53,10 +57,12 @@ confirm() {
     echo "ROOT partition:       $ROOT_PARTITION"
     echo "XBOOTLDR partition:   ${XBOOTLDR_PARTITION:-(not set)}"
     echo "===================================="
-    read -p "Continue with these settings? (y/n): " -n 1 -r; echo
-    [[ $REPLY =~ ^[Yy]$ ]] || {
-        echo "Aborted" >&2
-        exit 1
+    [[ $IS_TEST == true ]] || {
+        read -p "Continue with these settings? (y/n): " -n 1 -r; echo
+        [[ $REPLY =~ ^[Yy]$ ]] || {
+            echo "Aborted" >&2
+            exit 1
+        }
     }
 }
 
@@ -86,7 +92,11 @@ ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
 
 USER="t"
-get_password PASSWORD "Password"
+if [[ $IS_TEST == true ]]; then
+    PASSWORD=test
+else
+    get_password PASSWORD "Password"
+fi
 
 EFI_MOUNTPOINT="boot"
 if [[ -v XBOOTLDR_PARTITION ]]; then
