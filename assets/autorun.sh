@@ -44,5 +44,5 @@ sgdisk -p "$DISK"
 echo "Format EFI partition"
 mkfs.fat -F 32 "${DISK}p1"
 
-./install --efi /dev/nvme0n1p1 --root /dev/nvme0n1p2
-shudown
+./install --efi /dev/nvme0n1p1 --root /dev/nvme0n1p2 --test
+poweroff
