@@ -5,7 +5,7 @@ usage() {
     cat <<EOF
 Usage:
     $0 --efi <EFI PARTITION> --root <ROOT PARTITION> [options]
-    
+
 Options:
     Additional boot partition (if existing efi too small)
     --xbootldr <XBOOTLDR PARTITION>
@@ -62,14 +62,14 @@ confirm() {
 
 get_password() {
     local -n var=$1
-    local password confirm
+    local password password_confirm
     while true; do
-        read -s -p "$2 :" password; echo
-        read -s -p "Confirm password :" confirm; echo
-        [ "$password" == "$confirm" ] && break
+        read -rs -p "$2 :" password; echo
+        read -rs -p "Confirm password :" password_confirm; echo
+        [ "${password}" == "${password_confirm}" ] && break
         echo "Passwords do not match! Try again." >&2
     done
-    var="$confirm"
+    var="${password}"
 }
 
 to_be_splitted() {
@@ -85,9 +85,8 @@ ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git btop iwd zsh tree ncd
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
 
-USER="th"
-get_password ROOT_PASSWD "Enter root account password"
-get_password USER_PASSWD "Enter user account password"
+USER="t"
+get_password PASSWORD "Password"
 
 EFI_MOUNTPOINT="boot"
 if [[ -v XBOOTLDR_PARTITION ]]; then
@@ -97,10 +96,10 @@ if [[ -v XBOOTLDR_PARTITION ]]; then
 fi
 
 echo "==> Setting up LUKS encryption on root partition..."
-cryptsetup luksFormat "$ROOT_PARTITION"
+echo -n "$PASSWORD" | cryptsetup luksFormat "$ROOT_PARTITION" -q
 
 echo "==> Opening encrypted partition..."
-cryptsetup open "$ROOT_PARTITION" cryptroot
+echo -n "$PASSWORD" | cryptsetup open "$ROOT_PARTITION" cryptroot
 
 echo "==> Formatting root partition..."
 mkfs.btrfs  /dev/mapper/cryptroot
@@ -192,11 +191,11 @@ useradd -m -G wheel -s /bin/bash $USER
 
 # Set passwords
 chpasswd <<SETROOTPASSWORD
-root:$ROOT_PASSWD
+root:${PASSWORD}
 SETROOTPASSWORD
 
 chpasswd <<SETUSERPASSWORD
-$USER:$USER_PASSWD
+$USER:${PASSWORD}
 SETUSERPASSWORD
 
 # Enable sudo for wheel group
