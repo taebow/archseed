@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+HOSTNAME="archlinux"
+TIMEZONE="Europe/Paris"
+LOCALE="en_US.UTF-8"
+KEYMAP="dvorak"
+XKBLAYOUT="us"
+XKBVARIANT="dvorak-alt-intl"
+
+BASE_PACKAGES="base linux linux-firmware"
+ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth"
+ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
+MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
+GUI_PACKAGES="gnome kitty firefox"
+
+USER="t"
+PASSWORD=test
+
+
+
 usage() {
     cat <<EOF
 Usage:
@@ -65,7 +83,7 @@ confirm() {
         }
     }
 }
-
+confirm
 get_password() {
     local -n var=$1
     local password password_confirm
@@ -78,69 +96,55 @@ get_password() {
     var="${password}"
 }
 
-to_be_splitted() {
-HOSTNAME="archlinux"
-TIMEZONE="Europe/Paris"
-LOCALE="en_US.UTF-8"
-KEYMAP="dvorak"
-XKBLAYOUT="us"
-XKBVARIANT="dvorak-alt-intl"
+prepare_disk() {
+    [[ $IS_TEST == true ]] || get_password PASSWORD "Password"
 
-BASE_PACKAGES="base linux linux-firmware"
-ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth"
-ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
-MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
+    EFI_MOUNTPOINT="boot"
+    if [[ -v XBOOTLDR_PARTITION ]]; then
+        echo "==> Formatting XBOOTLDR partition..."
+        mkfs.fat -F32 "$XBOOTLDR_PARTITION"
+        EFI_MOUNTPOINT="efi"
+        fi
 
-USER="t"
-if [[ $IS_TEST == true ]]; then
-    PASSWORD=test
-else
-    get_password PASSWORD "Password"
-fi
+    echo "==> Setting up LUKS encryption on root partition..."
+    echo -n "$PASSWORD" | cryptsetup luksFormat "$ROOT_PARTITION" -q
 
-EFI_MOUNTPOINT="boot"
-if [[ -v XBOOTLDR_PARTITION ]]; then
-    echo "==> Formatting XBOOTLDR partition..."
-    mkfs.fat -F32 "$XBOOTLDR_PARTITION"
-    EFI_MOUNTPOINT="efi"
-fi
+    echo "==> Opening encrypted partition..."
+    echo -n "$PASSWORD" | cryptsetup open "$ROOT_PARTITION" cryptroot
 
-echo "==> Setting up LUKS encryption on root partition..."
-echo -n "$PASSWORD" | cryptsetup luksFormat "$ROOT_PARTITION" -q
+    echo "==> Formatting root partition..."
+    mkfs.btrfs  /dev/mapper/cryptroot
+    
+    echo "==> Mounting filesystems..."
+    mount /dev/mapper/cryptroot /mnt
 
-echo "==> Opening encrypted partition..."
-echo -n "$PASSWORD" | cryptsetup open "$ROOT_PARTITION" cryptroot
+    mkdir -p /mnt/$EFI_MOUNTPOINT
+    mount "$EFI_PARTITION" "/mnt/$EFI_MOUNTPOINT"
 
-echo "==> Formatting root partition..."
-mkfs.btrfs  /dev/mapper/cryptroot
+    if [[ -v XBOOTLDR_PARTITION ]]; then
+        mkdir -p /mnt/boot
+        mount "$XBOOTLDR_PARTITION" /mnt/boot
+    fi
+}
 
-echo "==> Mounting filesystems..."
-mount /dev/mapper/cryptroot /mnt
+install_base_system() {
+    echo "==> Installing base system..."
+    pacstrap /mnt $BASE_PACKAGES $ESSENTIAL_PACKAGES $ADDITIONAL_PACKAGES $MICROCODE_PACKAGE $GUI_PACKAGES
 
-mkdir -p /mnt/$EFI_MOUNTPOINT
-mount "$EFI_PARTITION" "/mnt/$EFI_MOUNTPOINT"
+    echo "==> Generating fstab..."
+    genfstab -U /mnt >> /mnt/etc/fstab
 
-if [[ -v XBOOTLDR_PARTITION ]]; then
-    mkdir -p /mnt/boot
-    mount "$XBOOTLDR_PARTITION" /mnt/boot
-fi
+    echo "==> Configure swapfile..."
+    mkswap -U clear --size $(awk '/MemTotal/ {print $2}' /proc/meminfo)KiB --file /mnt/swapfile
+    echo '/swapfile none swap defaults 0 0' >> /mnt/etc/fstab
+}
 
-# Install base system
-echo "==> Installing base system..."
-pacstrap /mnt $BASE_PACKAGES $ESSENTIAL_PACKAGES $ADDITIONAL_PACKAGES $MICROCODE_PACKAGE
-
-echo "==> Generating fstab..."
-genfstab -U /mnt >> /mnt/etc/fstab
-
-ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
-
-# Configure swap
-mkswap -U clear --size $(awk '/MemTotal/ {print $2}' /proc/meminfo)KiB --file /mnt/swapfile
-echo '/swapfile none swap defaults 0 0' >> /mnt/etc/fstab
-SWAP_OFFSET=$(btrfs inspect-internal map-swapfile -r /mnt/swapfile)
-
-echo "==> Configuring system..."
-arch-chroot -S /mnt /bin/bash <<EOF
+configure_system() {
+    
+    echo "==> Configuring system..."
+    ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
+    SWAP_OFFSET=$(btrfs inspect-internal map-swapfile -r /mnt/swapfile)    
+    arch-chroot -S /mnt /bin/bash <<EOF
 set -euo pipefail
 
 # Set timezone
@@ -219,24 +223,31 @@ sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 # Enable NetworkManager
 systemctl enable NetworkManager
 
+# Gui Configuration
+systemctl enable gdm
+sed -i '/^\[daemon\]/a AutomaticLoginEnable=True\nAutomaticLogin=$USER' /etc/gdm/custom.conf
+
 sync
 echo ""
 echo "==> System configuration complete!"
 
 EOF
+}
 
-umount /mnt/$EFI_MOUNTPOINT
-[[ -v XBOOTLDR_PARTITION ]] && umount /mnt/boot
-umount /mnt
-cryptsetup close cryptroot
-
-echo "Don't forget to change the default passwords!"
+unmount_and_close() {
+    umount /mnt/$EFI_MOUNTPOINT
+    [[ -v XBOOTLDR_PARTITION ]] && umount /mnt/boot
+    umount /mnt
+    cryptsetup close cryptroot
 }
 
 main() {
     parse_args "$@"
     confirm
-    to_be_splitted
+    prepare_disk
+    install_base_system
+    configure_system
+    unmount_and_close
 }
 
 main "$@"
