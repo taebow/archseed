@@ -1,6 +1,12 @@
 # archseed - My Opinionated Arch Linux ISO
 
-I built this project to automate creating a custom Arch Linux installation ISO with my personal configuration presets.
+## A Note from the Author
+
+I created this because `archinstall` annoyed me. It's too polished, too user-friendly. I wanted an installer that does exactly what I want, no questions asked. This is that installer.
+
+**Warning:** This tool is tailor-made for my specific setup. It's probably broken for anyone else. It's not well-tested, not secure, and not particularly clever. It's a glorified bash script that works on my machine™.
+
+If you're not me, you should probably use `archinstall` or the official Arch install guide. But if you are me, welcome home.
 
 ## What it does
 
@@ -17,7 +23,7 @@ The generated ISO includes my `/assets/install` script which:
 ## Prerequisites
 
 - Arch Linux (or Arch-based distro)
-- Required packages: `archiso`, `qemu-desktop`, `sgdisk`, `cryptsetup`
+- Required packages: `archiso`, `qemu-desktop`, `sgdisk`, `cryptsetup`, `just`
 - Run as root or with sudo
 
 ## Usage
