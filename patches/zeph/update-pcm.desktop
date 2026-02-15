@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Update PCM Workaround
+Exec=/bin/bash /home/t/update_pcm.sh
+X-GNOME-Autostart-enabled=true
