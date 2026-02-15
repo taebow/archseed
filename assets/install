@@ -133,15 +133,16 @@ install_base_system() {
     genfstab -U /mnt >> /mnt/etc/fstab
 
     echo "==> Configure swapfile..."
-    mkswap -U clear --size $(awk '/MemTotal/ {print $2}' /proc/meminfo)KiB --file /mnt/swapfile
-    echo '/swapfile none swap defaults 0 0' >> /mnt/etc/fstab
+    btrfs subvolume create /mnt/swap
+    btrfs filesystem mkswapfile --size $(awk '/MemTotal/ {print $2}' /proc/meminfo)k --uuid clear /mnt/swap/swapfile
+    echo '/swap/swapfile none swap defaults 0 0' >> /mnt/etc/fstab
 }
 
 configure_system() {
 
     echo "==> Configuring system..."
     ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
-    SWAP_OFFSET=$(btrfs inspect-internal map-swapfile -r /mnt/swapfile)
+    SWAP_OFFSET=$(btrfs inspect-internal map-swapfile -r /mnt/swap/swapfile)
     arch-chroot -S /mnt /bin/bash <<EOF
 set -euo pipefail
 
