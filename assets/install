@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HOSTNAME="archlinux"
+HOSTNAME="arch"
 TIMEZONE="Europe/Paris"
 LOCALE="en_US.UTF-8"
 KEYMAP="dvorak"
@@ -9,15 +9,13 @@ XKBLAYOUT="us"
 XKBVARIANT="dvorak-alt-intl"
 
 BASE_PACKAGES="base linux linux-firmware"
-ESSENTIAL_PACKAGES="base-devel networkmanager vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth"
+ESSENTIAL_PACKAGES="base-devel networkmanager power-profiles-daemon bluez alsa-utils vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth go"
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
-GUI_PACKAGES="gnome kitty firefox"
+GUI_PACKAGES="gnome kitty docker firefox"
 
 USER="t"
 PASSWORD=test
-
-
 
 usage() {
     cat <<EOF
@@ -83,7 +81,7 @@ confirm() {
         }
     }
 }
-confirm
+
 get_password() {
     local -n var=$1
     local password password_confirm
@@ -114,7 +112,7 @@ prepare_disk() {
 
     echo "==> Formatting root partition..."
     mkfs.btrfs  /dev/mapper/cryptroot
-    
+
     echo "==> Mounting filesystems..."
     mount /dev/mapper/cryptroot /mnt
 
@@ -140,10 +138,10 @@ install_base_system() {
 }
 
 configure_system() {
-    
+
     echo "==> Configuring system..."
     ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
-    SWAP_OFFSET=$(btrfs inspect-internal map-swapfile -r /mnt/swapfile)    
+    SWAP_OFFSET=$(btrfs inspect-internal map-swapfile -r /mnt/swapfile)
     arch-chroot -S /mnt /bin/bash <<EOF
 set -euo pipefail
 
@@ -220,12 +218,24 @@ SETUSERPASSWORD
 # Enable sudo for wheel group
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-# Enable NetworkManager
+# Enable networking
 systemctl enable NetworkManager
+systemctl enable bluetooth
 
 # Gui Configuration
 systemctl enable gdm
 sed -i '/^\[daemon\]/a AutomaticLoginEnable=True\nAutomaticLogin=$USER' /etc/gdm/custom.conf
+
+# Add ssh key
+su - $USER -c "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''"
+
+# Configure docker
+systemctl enable docker
+usermod -aG docker $USER
+
+# Configure default shell: zsh
+chsh -s /usr/bin/zsh
+chsh -s /usr/bin/zsh $USER
 
 sync
 echo ""
