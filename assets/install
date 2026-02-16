@@ -166,7 +166,7 @@ VCONSOLE
 echo "$HOSTNAME" > /etc/hostname
 
 # Configure mkinitcpio for encryption
-sed -i 's/^HOOKS=.*/HOOKS=(base systemd plymouth autodetect modconf kms keyboard sd-vconsole block sd-encrypt filesystems resume fsck)/' /etc/mkinitcpio.conf
+sed -i 's/^HOOKS=.*/HOOKS=(base systemd plymouth autodetect modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 
 # Regenerate initramfs
 mkinitcpio -P
