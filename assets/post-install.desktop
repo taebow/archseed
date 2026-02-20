@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Exec=/home/th/.config/autostart/post-install.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=PostInstall
+Comment=Run tasks on first login

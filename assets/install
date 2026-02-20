@@ -14,7 +14,7 @@ ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
 GUI_PACKAGES="gnome-shell gdm gnome-control-center gnome-shell-extensions gnome-tweaks gnome-screenshot gnome-backgrounds kitty docker firefox"
 
-USER="t"
+USER="th"
 PASSWORD=test
 IS_TEST=false
 
@@ -209,13 +209,10 @@ BOOTENTRY
 useradd -m -G wheel -s /bin/bash $USER
 
 # Set passwords
-chpasswd <<SETROOTPASSWORD
+chpasswd <<SETPASSWORD
 root:${PASSWORD}
-SETROOTPASSWORD
-
-chpasswd <<SETUSERPASSWORD
 $USER:${PASSWORD}
-SETUSERPASSWORD
+SETPASSWORD
 
 # Enable sudo for wheel group
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
@@ -246,6 +243,27 @@ echo "==> System configuration complete!"
 EOF
 }
 
+prepare_post_install() {
+    echo "==> Copy Post Install files"
+    AUTOSTART_DIR="/home/$USER/.config/autostart"
+
+    arch-chroot /mnt /bin/bash -c "
+        mkdir -p '$AUTOSTART_DIR'
+        chown -R $USER:$USER '/home/$USER/.config'
+        chmod 700 '$AUTOSTART_DIR'
+    "
+
+    cp post-install.sh /mnt"$AUTOSTART_DIR"/
+    cp post-install.desktop /mnt"$AUTOSTART_DIR"/
+
+    arch-chroot /mnt /bin/bash -c "
+        chown $USER:$USER '$AUTOSTART_DIR/post-install.sh'
+        chmod 700 '$AUTOSTART_DIR/post-install.sh'
+        chown $USER:$USER '$AUTOSTART_DIR/post-install.desktop'
+        chmod 644 '$AUTOSTART_DIR/post-install.desktop'
+    "
+}
+
 unmount_and_close() {
     umount /mnt/$EFI_MOUNTPOINT
     [[ -v XBOOTLDR_PARTITION ]] && umount /mnt/boot
@@ -259,6 +277,7 @@ main() {
     prepare_disk
     install_base_system
     configure_system
+    prepare_post_install
     unmount_and_close
 }
 
