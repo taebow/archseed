@@ -9,13 +9,14 @@ XKBLAYOUT="us"
 XKBVARIANT="dvorak-alt-intl"
 
 BASE_PACKAGES="base linux linux-firmware"
-ESSENTIAL_PACKAGES="base-devel networkmanager power-profiles-daemon bluez dnsutils alsa-utils vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth go"
+ESSENTIAL_PACKAGES="base-devel networkmanager power-profiles-daemon bluez dnsutils alsa-utils mlocate vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth go"
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
 GUI_PACKAGES="gnome kitty docker firefox"
 
 USER="t"
 PASSWORD=test
+IS_TEST=false
 
 usage() {
     cat <<EOF
