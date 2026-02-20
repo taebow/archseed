@@ -12,7 +12,7 @@ BASE_PACKAGES="base linux linux-firmware"
 ESSENTIAL_PACKAGES="base-devel networkmanager power-profiles-daemon bluez dnsutils alsa-utils mlocate vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth go"
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
-GUI_PACKAGES="gnome kitty docker firefox"
+GUI_PACKAGES="gnome-shell gdm gnome-control-center gnome-shell-extensions gnome-tweaks gnome-screenshot gnome-backgrounds kitty docker firefox"
 
 USER="t"
 PASSWORD=test
