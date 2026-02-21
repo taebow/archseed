@@ -19,8 +19,6 @@ echo 'KEYMAP=dvorak' >> $PROFILE_PATH/airootfs/etc/vconsole.conf
 sed -i -e 's/^timeout .*/timeout 0/' -e 's/^beep on/beep off/' $PROFILE_PATH/efiboot/loader/loader.conf
 
 add_script install
-cp ./assets/post-install.desktop $PROFILE_PATH/airootfs/root/
-cp ./assets/post-install.sh $PROFILE_PATH/airootfs/root/
 if [[ "$1" == "test" ]]; then
     add_script autorun.sh
     echo "./autorun.sh" >> $PROFILE_PATH/airootfs/root/.zlogin

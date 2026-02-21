@@ -215,7 +215,7 @@ $USER:${PASSWORD}
 SETPASSWORD
 
 # Enable sudo for wheel group
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+sed -i 's|^[[:space:]]*#[[:space:]]*\(%wheel ALL=(ALL:ALL) NOPASSWD: ALL\)|\1|' /etc/sudoers
 
 # Enable networking
 systemctl enable NetworkManager
@@ -224,9 +224,6 @@ systemctl enable bluetooth
 # Gui Configuration
 systemctl enable gdm
 sed -i '/^\[daemon\]/a AutomaticLoginEnable=True\nAutomaticLogin=$USER' /etc/gdm/custom.conf
-
-# Add ssh key
-su - $USER -c "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''"
 
 # Configure docker
 systemctl enable docker
@@ -243,24 +240,24 @@ echo "==> System configuration complete!"
 EOF
 }
 
-prepare_post_install() {
-    echo "==> Copy Post Install files"
-    AUTOSTART_DIR="/home/$USER/.config/autostart"
+post_install_user() {
+    echo "==> Post Install"
 
-    arch-chroot /mnt /bin/bash -c "
-        mkdir -p '$AUTOSTART_DIR'
-        chown -R $USER:$USER '/home/$USER/.config'
-        chmod 700 '$AUTOSTART_DIR'
+    arch-chroot /mnt runuser -l $USER -c "
+        pwd
+        ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''
+        git clone https://aur.archlinux.org/yay.git
+        (cd yay && makepkg -si --noconfirm) && rm -rf yay
+        yay -S --noconfirm ttf-hack zinit starship
+        yadm clone https://github.com/taebow/dotbytes.git
+        source .zshrc
     "
 
-    cp post-install.sh /mnt"$AUTOSTART_DIR"/
-    cp post-install.desktop /mnt"$AUTOSTART_DIR"/
-
     arch-chroot /mnt /bin/bash -c "
-        chown $USER:$USER '$AUTOSTART_DIR/post-install.sh'
-        chmod 700 '$AUTOSTART_DIR/post-install.sh'
-        chown $USER:$USER '$AUTOSTART_DIR/post-install.desktop'
-        chmod 644 '$AUTOSTART_DIR/post-install.desktop'
+        sed -i \
+            -e 's|^\(%wheel ALL=(ALL:ALL) NOPASSWD: ALL\)|# \1|' \
+            -e 's|^[[:space:]]*#[[:space:]]*\(%wheel ALL=(ALL:ALL) ALL\)|\1|' \
+            /etc/sudoers
     "
 }
 
@@ -277,7 +274,7 @@ main() {
     prepare_disk
     install_base_system
     configure_system
-    prepare_post_install
+    post_install_user
     unmount_and_close
 }
 
