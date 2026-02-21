@@ -12,7 +12,7 @@ BASE_PACKAGES="base linux linux-firmware"
 ESSENTIAL_PACKAGES="base-devel networkmanager power-profiles-daemon bluez dnsutils alsa-utils mlocate vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth go"
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
-GUI_PACKAGES="gnome-shell gdm gnome-control-center gnome-shell-extensions gnome-tweaks gnome-keyring gnome-backgrounds kitty docker firefox"
+GUI_PACKAGES="gnome-shell gdm gnome-control-center gnome-shell-extensions gnome-tweaks gnome-keyring gnome-backgrounds gnome-system-monitor kitty docker firefox"
 
 USER="th"
 PASSWORD=test
@@ -248,7 +248,7 @@ post_install_user() {
         ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''
         git clone https://aur.archlinux.org/yay.git
         (cd yay && makepkg -si --noconfirm) && rm -rf yay
-        yay -S --noconfirm ttf-hack zinit starship
+        yay -S --noconfirm ttf-hack zinit starship eza
         yadm clone https://github.com/taebow/dotbytes.git
         source .zshrc
     "
