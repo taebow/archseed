@@ -248,7 +248,7 @@ post_install_user() {
         ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''
         git clone https://aur.archlinux.org/yay.git
         (cd yay && makepkg -si --noconfirm) && rm -rf yay
-        yay -S --noconfirm ttf-hack zinit starship eza
+        yay -S --noconfirm ttf-hack zinit starship eza ccat bat
         yadm clone https://github.com/taebow/dotbytes.git
         source .zshrc
     "
