@@ -9,7 +9,7 @@ XKBLAYOUT="us"
 XKBVARIANT="dvorak-alt-intl"
 
 BASE_PACKAGES="base linux linux-firmware"
-ESSENTIAL_PACKAGES="base-devel networkmanager power-profiles-daemon bluez dnsutils alsa-utils mlocate vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth go"
+ESSENTIAL_PACKAGES="base-devel networkmanager power-profiles-daemon bluez dnsutils alsa-utils mlocate vim sudo git btop iwd zsh tree ncdu neovim lynx nmap rsync traceroute zip yadm plymouth go rbw whois direnv"
 ADDITIONAL_PACKAGES="man-db man-pages texinfo btrfs-progs"
 MICROCODE_PACKAGE=$(grep -q GenuineIntel /proc/cpuinfo && echo intel-ucode || echo amd-ucode)
 GUI_PACKAGES="gnome-shell gdm gnome-control-center gnome-shell-extensions gnome-tweaks gnome-keyring gnome-backgrounds gnome-system-monitor kitty docker firefox"
@@ -220,6 +220,7 @@ sed -i 's|^[[:space:]]*#[[:space:]]*\(%wheel ALL=(ALL:ALL) NOPASSWD: ALL\)|\1|' 
 # Enable networking
 systemctl enable NetworkManager
 systemctl enable bluetooth
+systemctl enable systemd-timesyncd
 
 # Gui Configuration
 systemctl enable gdm
@@ -245,11 +246,14 @@ post_install_user() {
 
     arch-chroot /mnt runuser -l $USER -c "
         pwd
-        ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''
         git clone https://aur.archlinux.org/yay.git
         (cd yay && makepkg -si --noconfirm) && rm -rf yay
-        yay -S --noconfirm ttf-hack zinit starship eza ccat bat
-        yadm clone https://github.com/taebow/dotbytes.git
+        yay -S --noconfirm ttf-hack-nerd zinit starship eza ccat bat nvm
+        yadm clone --bootstrap https://github.com/taebow/dotbytes.git
+        mkdir -p ~/.cache/zinit/completions
+        docker completion zsh > ~/.cache/zinit/completions/_docker
+        source /usr/share/nvm/init-nvm.sh --no-use
+        nvm install node
         source .zshrc
     "
 
